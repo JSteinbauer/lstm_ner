@@ -1,0 +1,213 @@
+import json
+import logging
+import os
+import time
+from abc import abstractmethod, ABCMeta
+from typing import Optional, Dict, Any, Generator, List
+
+import numpy as np
+import tensorflow as tf
+
+from tf_ner.models.keras_data_generation import get_word_data_tensors, data_generator_words
+from tf_ner.utils import setup_strategy
+from ondewo_cdls.utils.helper import is_file, create_dir
+from ondewo_cdls.utils.training_utils import TrainingUtils
+
+log = logging.getLogger(__name__)
+
+
+def fwords(name: str, data_dir: str) -> str:
+    return os.path.join(data_dir, f'{name}.words.txt')
+
+
+def ftags(name: str, data_dir: str) -> str:
+    return os.path.join(data_dir, f'{name}.tags.txt')
+
+
+class NerTfKerasBaseClass(metaclass=ABCMeta):
+    PARAMS_FILENAME: str = 'params.json'
+    WEIGHTS_FILENAME: str = 'weights.h5'
+
+    def __init__(
+        self,
+        data_dir: str,
+        model_dir: str,
+        params: Optional[dict] = None,
+        num_gpus: int = 0,
+    ) -> None:
+        if not data_dir and is_file(data_dir, exception=False):
+            raise ValueError('Path for data directory must be set')
+        self.data_dir = data_dir
+
+        if not model_dir:
+            raise ValueError('Path for data directory must be set')
+        self.model_dir = model_dir
+
+        if params is None:
+            params = {
+                'dim_chars': 100,
+                'learning_rate': 1e-3,
+                'dim': 300,
+                'dropout': 0.5,
+                'num_oov_buckets': 1,
+                'epochs': 1,
+                'batch_size': 100,
+                'buffer': 15000,
+                'filters': 50,
+                'kernel_size': 3,
+                'lstm_size': 100}
+
+        self.params: Dict[str, Any] = params
+
+        if 'words' not in self.params:
+            words_file_path: str = os.path.join(data_dir, 'vocab.words.txt')
+            if not words_file_path and is_file(words_file_path, exception=False):
+                raise ValueError('Path for words_file_path must be set and file must exist')
+            self.params['words'] = words_file_path
+
+        if 'tags' not in self.params:
+            tags_file_path = os.path.join(data_dir, 'vocab.tags.txt')
+            if not tags_file_path and is_file(tags_file_path, exception=False):
+                raise ValueError('Path for tags_file_path must be set and file must exist')
+            self.params['tags'] = tags_file_path
+
+        if 'chars' not in self.params:
+            chars_file_path = os.path.join(data_dir, 'vocab.chars.txt')
+            if not chars_file_path and is_file(chars_file_path, exception=False):
+                raise ValueError('Path for chars_file_path must be set and file must exist')
+            self.params['chars'] = chars_file_path
+
+        if 'glove' not in self.params:
+            glove_npz_file_path = os.path.join(data_dir, 'glove.npz')
+            if not glove_npz_file_path and is_file(glove_npz_file_path, exception=False):
+                raise ValueError('Path for glove_npz_file_path must be set and file must exist')
+            self.params['glove'] = glove_npz_file_path
+
+        # create model directory
+        create_dir(model_dir)
+
+        # save model configuration in form of params.json
+        with open(os.path.join(model_dir, self.PARAMS_FILENAME), 'w') as f:
+            json.dump(self.params, f, indent=4, sort_keys=True)
+
+        with setup_strategy(num_gpus=num_gpus).scope():
+            self.keras_model = self._build_keras_model()
+
+    @abstractmethod
+    def _build_keras_model(self) -> tf.keras.Model:
+        pass
+
+    @abstractmethod
+    def train(self, n_train_samples: int, n_valid_samples: int) -> None:
+        pass
+
+    def _train(
+        self,
+        n_train_samples: int,
+        n_valid_samples: int,
+        use_chars: bool,
+    ) -> None:
+        batch_size: int = self.params['batch_size']
+        epochs: int = self.params['epochs']
+        n_train_steps: int = TrainingUtils.get_steps_per_epoch(n_train_samples, batch_size=batch_size)
+        n_valid_steps: int = TrainingUtils.get_steps_per_epoch(n_valid_samples, batch_size=batch_size)
+
+        start_time: float = time.time()
+        log.debug(f'START Training {self.__class__.__name__} using {n_train_samples} samples '
+                  f'({n_train_steps} steps) in {epochs} epochs with validation using {n_valid_samples} '
+                  f'samples ({n_valid_steps} steps)...')
+
+        train_data_dir = fwords('train', self.data_dir)
+        train_tags_dir = ftags('train', self.data_dir)
+        valid_data_dir = fwords('testa', self.data_dir)
+        valid_tags_dir = ftags('testa', self.data_dir)
+
+        train_data: Generator = data_generator_words(train_data_dir, train_tags_dir,
+                                                     batch_size=batch_size, use_chars=use_chars)
+        valid_data: Optional[Generator] = None
+        if n_valid_samples:
+            valid_data = data_generator_words(valid_data_dir, valid_tags_dir,
+                                              batch_size=batch_size, use_chars=use_chars)
+
+        # model is compiled without additional loss function - only use loss added with add_loss() method
+        self.keras_model.compile(loss=None, optimizer='adam')
+
+        # set up callbacks
+        callbacks: List[tf.keras.callbacks.Callback] = [
+            tf.keras.callbacks.EarlyStopping(patience=10, restore_best_weights=True),
+            tf.keras.callbacks.TensorBoard(log_dir=self.model_dir),
+        ]
+
+        self.keras_model.fit(
+            train_data,
+            validation_data=valid_data,
+            steps_per_epoch=n_train_steps,
+            epochs=epochs,
+            validation_steps=n_valid_steps,
+            callbacks=callbacks,
+        )
+
+        log.debug('DONE Training of %s in %f.2f s.', self.__class__.__name__, time.time() - start_time)
+        for name in ['train', 'testa', 'testb']:
+            self.write_predictions(
+                keras_model=self.keras_model,
+                name=name,
+                language_model_dir_path=self.model_dir,
+                data_dir=self.data_dir,
+                use_chars=True
+            )
+
+        self.keras_model.save_weights(filepath=os.path.join(self.model_dir, self.WEIGHTS_FILENAME))
+
+    def load_weights(self, model_dir: str) -> None:
+        weights_path: str = os.path.join(model_dir, self.WEIGHTS_FILENAME)
+        if not is_file(weights_path):
+            raise FileNotFoundError(f'Weights file "{weights_path}" not found.')
+        self.keras_model.load_weights(filepath=weights_path)
+
+    def predict(self, model_input: list) -> np.ndarray:
+        return self.keras_model.predict(model_input)
+
+    @staticmethod
+    def write_predictions(
+        keras_model: tf.keras.Model,
+        name: str,
+        language_model_dir_path: str,
+        data_dir: str,
+        use_chars: bool,
+    ) -> None:
+        """ Write predictions of trained model into files.
+
+        NOTE: static method needed for multiprocessing
+
+        Args:
+            keras_model: trained keras model
+            name: name of the data
+            language_model_dir_path: output directory for saving files
+            data_dir: input directory to read data from
+            use_chars:
+        """
+        language_model_prediction_path = os.path.join(language_model_dir_path, 'predictions')
+        os.makedirs(language_model_prediction_path, exist_ok=True)
+
+        score_file_path: str = os.path.join(language_model_prediction_path, f'score_{name}.preds.txt')
+        with open(score_file_path, 'wb') as f:
+            test_data_path = fwords(name, data_dir)
+            test_tags_path = ftags(name, data_dir)
+
+            if not os.path.getsize(test_data_path):
+                # no data to predict => skip
+                return
+
+            test_data = get_word_data_tensors(test_data_path, test_tags_path, use_chars=use_chars)
+            pred_ids = keras_model.predict(test_data)
+
+            pred_entities = pred_ids
+            true_entities = test_data[2]
+            original_words = test_data[0]
+
+            for n in range(pred_ids.shape[0]):
+                for m in range(test_data[1][n]):
+                    f.write(
+                        b' '.join([original_words[n, m], true_entities[n, m], pred_entities[n, m]]) + b'\n')
+                f.write(b'\n')
