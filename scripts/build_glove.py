@@ -1,18 +1,12 @@
-"""Build an np.array from some glove file and some vocab file
-
-You need to download `glove.840B.300d.txt` from
-https://nlp.stanford.edu/projects/glove/ and you need to have built
-your vocabulary first (Maybe using `build_vocab.py`)
 """
-
-__author__ = "Guillaume Genthial"
-
+Build an np.array from some glove file and some vocab file
+"""
 from pathlib import Path
 
 import numpy as np
 
 
-if __name__ == '__main__':
+def main() -> None:
     # Load vocab
     with Path('vocab.words.txt').open() as f:
         word_to_idx = {line.strip(): idx for idx, line in enumerate(f)}
@@ -41,3 +35,7 @@ if __name__ == '__main__':
 
     # Save np.array to file
     np.savez_compressed('glove.npz', embeddings=embeddings)
+
+
+if __name__ == '__main__':
+    main()
