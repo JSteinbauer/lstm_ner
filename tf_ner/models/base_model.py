@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import time
 from abc import abstractmethod, ABCMeta
@@ -9,11 +10,15 @@ import numpy as np
 import tensorflow as tf
 
 from tf_ner.models.keras_data_generation import get_word_data_tensors, data_generator_words
-from tf_ner.utils.file_system import setup_strategy
-from ondewo_cdls.utils.helper import is_file, create_dir
-from ondewo_cdls.utils.training_utils import TrainingUtils
+from tf_ner.utils.gpu import setup_strategy
+from tf_ner.utils.file_system import is_file, create_dir
+
 
 log = logging.getLogger(__name__)
+
+
+def get_steps_per_epoch(n_samples: int, batch_size: int) -> int:
+    return int(math.ceil(n_samples / batch_size))
 
 
 def fwords(name: str, data_dir: str) -> str:
@@ -25,8 +30,24 @@ def ftags(name: str, data_dir: str) -> str:
 
 
 class NerTfKerasBaseClass(metaclass=ABCMeta):
+    """
+    Base Class for all GLOVE based models for Named Entity Recognition (NER)
+    """
     PARAMS_FILENAME: str = 'params.json'
     WEIGHTS_FILENAME: str = 'weights.h5'
+    DEFAULT_PARAMS: Dict[str, str] = {
+        'dim_chars': 100,
+        'learning_rate': 1e-3,
+        'dim': 300,
+        'dropout': 0.5,
+        'num_oov_buckets': 1,
+        'epochs': 1,
+        'batch_size': 100,
+        'buffer': 15000,
+        'filters': 50,
+        'kernel_size': 3,
+        'lstm_size': 100
+    }
 
     def __init__(
         self,
@@ -40,49 +61,13 @@ class NerTfKerasBaseClass(metaclass=ABCMeta):
         self.data_dir = data_dir
 
         if not model_dir:
-            raise ValueError('Path for data directory must be set')
+            raise ValueError('Path for model directory must be set')
         self.model_dir = model_dir
 
-        if params is None:
-            params = {
-                'dim_chars': 100,
-                'learning_rate': 1e-3,
-                'dim': 300,
-                'dropout': 0.5,
-                'num_oov_buckets': 1,
-                'epochs': 1,
-                'batch_size': 100,
-                'buffer': 15000,
-                'filters': 50,
-                'kernel_size': 3,
-                'lstm_size': 100}
-
-        self.params: Dict[str, Any] = params
-
-        if 'words' not in self.params:
-            words_file_path: str = os.path.join(data_dir, 'vocab.words.txt')
-            if not words_file_path and is_file(words_file_path, exception=False):
-                raise ValueError('Path for words_file_path must be set and file must exist')
-            self.params['words'] = words_file_path
-
-        if 'tags' not in self.params:
-            tags_file_path = os.path.join(data_dir, 'vocab.tags.txt')
-            if not tags_file_path and is_file(tags_file_path, exception=False):
-                raise ValueError('Path for tags_file_path must be set and file must exist')
-            self.params['tags'] = tags_file_path
-
-        if 'chars' not in self.params:
-            chars_file_path = os.path.join(data_dir, 'vocab.chars.txt')
-            if not chars_file_path and is_file(chars_file_path, exception=False):
-                raise ValueError('Path for chars_file_path must be set and file must exist')
-            self.params['chars'] = chars_file_path
-
-        if 'glove' not in self.params:
-            glove_npz_file_path = os.path.join(data_dir, 'glove.npz')
-            if not glove_npz_file_path and is_file(glove_npz_file_path, exception=False):
-                raise ValueError('Path for glove_npz_file_path must be set and file must exist')
-            self.params['glove'] = glove_npz_file_path
-
+        # If no params are parsed, use default params
+        self.params: Dict[str, Any] = params or self.DEFAULT_PARAMS
+        # Add missing parameters
+        self._add_missing_params()
         # create model directory
         create_dir(model_dir)
 
@@ -92,6 +77,34 @@ class NerTfKerasBaseClass(metaclass=ABCMeta):
 
         with setup_strategy(num_gpus=num_gpus).scope():
             self.keras_model = self._build_keras_model()
+
+    def _add_missing_params(self) -> None:
+        """
+        Adds missing parameters
+        """
+        if 'words' not in self.params:
+            words_file_path: str = os.path.join(self.data_dir, 'vocab.words.txt')
+            if not words_file_path and is_file(words_file_path, exception=False):
+                raise ValueError('Path for words_file_path must be set and file must exist')
+            self.params['words'] = words_file_path
+
+        if 'tags' not in self.params:
+            tags_file_path = os.path.join(self.data_dir, 'vocab.tags.txt')
+            if not tags_file_path and is_file(tags_file_path, exception=False):
+                raise ValueError('Path for tags_file_path must be set and file must exist')
+            self.params['tags'] = tags_file_path
+
+        if 'chars' not in self.params:
+            chars_file_path = os.path.join(self.data_dir, 'vocab.chars.txt')
+            if not chars_file_path and is_file(chars_file_path, exception=False):
+                raise ValueError('Path for chars_file_path must be set and file must exist')
+            self.params['chars'] = chars_file_path
+
+        if 'glove' not in self.params:
+            glove_npz_file_path = os.path.join(self.data_dir, 'glove.npz')
+            if not glove_npz_file_path and is_file(glove_npz_file_path, exception=False):
+                raise ValueError('Path for glove_npz_file_path must be set and file must exist')
+            self.params['glove'] = glove_npz_file_path
 
     @abstractmethod
     def _build_keras_model(self) -> tf.keras.Model:
@@ -109,8 +122,8 @@ class NerTfKerasBaseClass(metaclass=ABCMeta):
     ) -> None:
         batch_size: int = self.params['batch_size']
         epochs: int = self.params['epochs']
-        n_train_steps: int = TrainingUtils.get_steps_per_epoch(n_train_samples, batch_size=batch_size)
-        n_valid_steps: int = TrainingUtils.get_steps_per_epoch(n_valid_samples, batch_size=batch_size)
+        n_train_steps: int = get_steps_per_epoch(n_train_samples, batch_size=batch_size)
+        n_valid_steps: int = get_steps_per_epoch(n_valid_samples, batch_size=batch_size)
 
         start_time: float = time.time()
         log.debug(f'START Training {self.__class__.__name__} using {n_train_samples} samples '
