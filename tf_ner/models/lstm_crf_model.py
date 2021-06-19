@@ -2,22 +2,24 @@
 GloVe Embeddings + chars conv and max pooling + bi-LSTM + CRF
 Implementation based on https://arxiv.org/pdf/1508.01991.pdf
 """
+import os.path
 
 import tensorflow as tf
 from tensorflow.keras.layers import Input
 from tensorflow.python.keras.layers import Dropout, Bidirectional, LSTM, Dense
 from tensorflow.python.keras.models import Model
 
-from tf_ner.models.base_model import NerTfKerasBaseClass
+from tf_ner.models.base_model import NerBase
 from tf_ner.models.keras_custom_layers import (
     WordsToNumbers,
     WordsToEmbeddings,
     CRFDecode,
     NumbersToTags,
 )
+from tf_ner.models.keras_data_generation import get_word_data_tensors
 
 
-class NerTfLstmCrfAlgorithmKERAS(NerTfKerasBaseClass):
+class NerLstmCrf(NerBase):
     def _build_keras_model(self) -> tf.keras.Model:
         tags_path: str = self.params['tags']
         with open(tags_path) as f:
@@ -55,3 +57,17 @@ class NerTfLstmCrfAlgorithmKERAS(NerTfKerasBaseClass):
             n_valid_samples=n_valid_samples,
             use_chars=False,
         )
+
+if __name__ == '__main__':
+    data_dir: str = 'data/conll-2003_preprocessed/'
+    model_dir: str = 'models/lstm_crf/'
+    ner_lstm_crf = NerLstmCrf(
+        data_dir=data_dir,
+        model_dir=model_dir,
+    )
+    # test_data_path = os.path.join(data_dir, 'testb.words.txt')
+    # test_tags_path = os.path.join(data_dir, 'testb.tags.txt')
+    #
+    # test_data = get_word_data_tensors(test_data_path, test_tags_path)
+    # ner_lstm_crf.predict()
+    ner_lstm_crf.train(14041, 3250)

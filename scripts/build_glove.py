@@ -18,6 +18,7 @@ def main() -> None:
     found = 0
     print('Reading GloVe file (may take a while)')
     with open(os.path.join(GLOVE_DIR, 'glove.840B.300d.txt'), 'r') as f:
+        # Iterate over all lines of glove file and collect relevant embeddings in numpy array
         for line_idx, line in enumerate(f):
             if line_idx % 100000 == 0:
                 print(f'- At line {line_idx}')
@@ -33,7 +34,7 @@ def main() -> None:
     print(f'- done. Found {found} vectors for {size_vocab} words')
 
     # Save np.array to file
-    np.savez_compressed('glove.npz', embeddings=embeddings)
+    np.savez_compressed(os.path.join(VOCAB_DIR, 'glove.npz'), embeddings=embeddings)
 
 
 if __name__ == '__main__':

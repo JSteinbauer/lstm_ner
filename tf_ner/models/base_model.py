@@ -29,7 +29,7 @@ def ftags(name: str, data_dir: str) -> str:
     return os.path.join(data_dir, f'{name}.tags.txt')
 
 
-class NerTfKerasBaseClass(metaclass=ABCMeta):
+class NerBase(metaclass=ABCMeta):
     """
     Base Class for all GLOVE based models for Named Entity Recognition (NER)
     """
@@ -46,7 +46,7 @@ class NerTfKerasBaseClass(metaclass=ABCMeta):
         'buffer': 15000,
         'filters': 50,
         'kernel_size': 3,
-        'lstm_size': 100
+        'lstm_size': 50 #100
     }
 
     def __init__(
@@ -77,6 +77,10 @@ class NerTfKerasBaseClass(metaclass=ABCMeta):
 
         with setup_strategy(num_gpus=num_gpus).scope():
             self.keras_model = self._build_keras_model()
+
+    def model_summary(self) -> None:
+        """ Print model summary """
+        self.keras_model.summary()
 
     def _add_missing_params(self) -> None:
         """
@@ -167,7 +171,7 @@ class NerTfKerasBaseClass(metaclass=ABCMeta):
                 name=name,
                 language_model_dir_path=self.model_dir,
                 data_dir=self.data_dir,
-                use_chars=True
+                use_chars=False
             )
 
         self.keras_model.save_weights(filepath=os.path.join(self.model_dir, self.WEIGHTS_FILENAME))
@@ -194,11 +198,11 @@ class NerTfKerasBaseClass(metaclass=ABCMeta):
         NOTE: static method needed for multiprocessing
 
         Args:
-            keras_model: trained keras model
-            name: name of the data
-            language_model_dir_path: output directory for saving files
-            data_dir: input directory to read data from
-            use_chars:
+            keras_model: Trained keras model
+            name: Name of the data
+            language_model_dir_path: Output directory for saving files
+            data_dir: Input directory to read data from
+            use_chars: Whether or not to use character information
         """
         language_model_prediction_path = os.path.join(language_model_dir_path, 'predictions')
         os.makedirs(language_model_prediction_path, exist_ok=True)
@@ -208,9 +212,9 @@ class NerTfKerasBaseClass(metaclass=ABCMeta):
             test_data_path = fwords(name, data_dir)
             test_tags_path = ftags(name, data_dir)
 
+            # If there's no data to predict => skip
             if not os.path.getsize(test_data_path):
-                # no data to predict => skip
-                return
+                return None
 
             test_data = get_word_data_tensors(test_data_path, test_tags_path, use_chars=use_chars)
             pred_ids = keras_model.predict(test_data)
