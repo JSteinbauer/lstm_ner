@@ -10,7 +10,7 @@ from tensorflow.python.ops.lookup_ops import index_table_from_file, index_to_str
 # from tensorflow.python.types.core import Tensor
 
 
-############################## Custom Layers #################################
+# ============================ Custom Layers ============================ #
 
 class WordsToNumbers(tf.keras.layers.Layer):
     def __init__(self, param_words: str, param_tags: str, param_num_oov_buckets: int, **kwargs: Any) -> None:

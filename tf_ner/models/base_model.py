@@ -9,7 +9,7 @@ import numpy as np
 import tensorflow as tf
 
 from tf_ner.models.keras_data_generation import get_word_data_tensors, data_generator_words
-from tf_ner.utils import setup_strategy
+from tf_ner.utils.file_system import setup_strategy
 from ondewo_cdls.utils.helper import is_file, create_dir
 from ondewo_cdls.utils.training_utils import TrainingUtils
 
