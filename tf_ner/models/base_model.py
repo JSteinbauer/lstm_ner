@@ -29,9 +29,9 @@ def ftags(name: str, data_dir: str) -> str:
     return os.path.join(data_dir, f'{name}.tags.txt')
 
 
-class NerBase(metaclass=ABCMeta):
+class NerLstmBase(metaclass=ABCMeta):
     """
-    Base Class for all GLOVE based models for Named Entity Recognition (NER)
+    Base Class for all LSTM-based Named Entity Recognition (NER) engines
     """
     PARAMS_FILENAME: str = 'params.json'
     WEIGHTS_FILENAME: str = 'weights.h5'

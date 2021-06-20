@@ -3,7 +3,7 @@ from tensorflow.keras.layers import Input
 from tensorflow.python.keras.layers import Dropout, Bidirectional, LSTM, Dense
 from tensorflow.python.keras.models import Model
 
-from tf_ner.models.base_model import NerBase
+from tf_ner.models.base_model import NerLstmBase
 from tf_ner.models.keras_custom_layers import (
     WordsToNumbers,
     WordsToEmbeddings,
@@ -12,7 +12,7 @@ from tf_ner.models.keras_custom_layers import (
 )
 
 
-class NerLstmCrf(NerBase):
+class NerLstmCrf(NerLstmBase):
     """
     GloVe Embeddings + chars conv and max pooling + bi-LSTM + CRF
     Implementation based on https://arxiv.org/pdf/1508.01991.pdf
