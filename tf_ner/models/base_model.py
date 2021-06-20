@@ -10,16 +10,12 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import Tensor
 
-from tf_ner.utils.data_handling import get_word_data_tensors, data_generator_words
+from tf_ner.utils.data_handling import get_word_data_tensors, data_generator_words, LstmNerDataSilo
 from tf_ner.utils.gpu import setup_strategy
 from tf_ner.utils.file_system import is_file, create_dir
 
 
 log = logging.getLogger(__name__)
-
-
-def get_steps_per_epoch(n_samples: int, batch_size: int) -> int:
-    return int(math.ceil(n_samples / batch_size))
 
 
 def fwords(name: str, data_dir: str) -> str:
@@ -85,7 +81,7 @@ class NerLstmBase(metaclass=ABCMeta):
 
     def _add_missing_params(self) -> None:
         """
-        Adds missing parameters
+        Add missing parameters
         """
         if 'words' not in self.params:
             words_file_path: str = os.path.join(self.data_dir, 'vocab.words.txt')
@@ -121,14 +117,13 @@ class NerLstmBase(metaclass=ABCMeta):
 
     def _train(
         self,
+        data_silo: LstmNerDataSilo,
         n_train_samples: int,
         n_valid_samples: int,
         use_chars: bool,
     ) -> None:
         batch_size: int = self.params['batch_size']
         epochs: int = self.params['epochs']
-        n_train_steps: int = get_steps_per_epoch(n_train_samples, batch_size=batch_size)
-        n_valid_steps: int = get_steps_per_epoch(n_valid_samples, batch_size=batch_size)
 
         start_time: float = time.time()
         log.debug(f'START Training {self.__class__.__name__} using {n_train_samples} samples '

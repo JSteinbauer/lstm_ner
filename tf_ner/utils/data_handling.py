@@ -1,6 +1,7 @@
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Dict, Generator, Any
+from typing import List, Dict, Generator, Any, Optional, Tuple
 
 import numpy as np
 import tensorflow as tf
@@ -90,17 +91,39 @@ class NerDataBatch:
             return [sentence_tensor, nwords_tensor, char_tensor, nchar_tensor, tag_string_tensor]
         return [sentence_tensor, nwords_tensor, tag_string_tensor]
 
+
 class NerDataSiloBase:
-    def __init__(self, words_path: str, tags_path: str, batch_size: int = 20, **kwargs: Any) -> None:
-        self.words_path = words_path
-        self.tags_path = tags_path
+    def __init__(
+            self,
+            data_directory: str,
+            batch_size: int = 20,
+            **kwargs: Any,
+    ) -> None:
+        self.data_directory = data_directory
         self.batch_size = batch_size
 
-        self.word_lines: List[str] = self._read_lines(words_path)
-        self.tag_lines: List[str] = self._read_lines(tags_path)
+        self.data_dict: Dict[str, Any] = {
+            'train': None,
+            'valid': None,
+            'test': None,
+        }
+        # Fills data dict by reading data from data_directory
+        self._fill_data_dict()
+
+    def _fill_data_dict(self) -> None:
+        """ Try to fill self.data_dict by reading in data from directory """
+        for key, _ in self.data_dict:
+            try:
+                word_lines: List[str] = self._read_lines(os.path.join(self.data_directory, f'{key}.words.txt'))
+                tag_lines: List[str] = self._read_lines(os.path.join(self.data_directory, f'{key}.tags.txt'))
+            except FileNotFoundError:
+                pass
+            else:
+                self.data_dict[key] = (word_lines, tag_lines)
 
     @staticmethod
     def _read_lines(file_name: str) -> List[str]:
+        """ Read data from file """
         with open(file_name) as f:
             return f.readlines()
 
@@ -112,7 +135,14 @@ class LstmNerDataSilo(NerDataSiloBase):
         - Applicable to models that operate on a word level only e.g. LstmCrf (use_chars=False)
     """
 
-    def __init__(self, words_path: str, tags_path: str, batch_size: int = 20, use_chars: bool = True, **kwargs) -> None:
+    def __init__(
+            self,
+            words_path: str,
+            tags_path: str,
+            batch_size: int = 20,
+            use_chars: bool = True,
+            **kwargs,
+    ) -> None:
         super(LstmNerDataSilo, self).__init__(words_path, tags_path, batch_size, **kwargs)
         # Whether or not to use character information
         self.use_chars = use_chars

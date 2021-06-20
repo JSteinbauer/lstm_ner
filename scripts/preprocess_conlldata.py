@@ -112,7 +112,7 @@ if __name__ == '__main__':
     dataset_valid = processor.get_dev_examples(DATA_DIR)
     dataset_test = processor.get_test_examples(DATA_DIR)
 
-    data_dict = {'train': dataset_train, 'testa': dataset_valid, 'testb': dataset_test}
+    data_dict = {'train': dataset_train, 'valid': dataset_valid, 'test': dataset_test}
 
     for name, data_set in data_dict.items():
         flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY

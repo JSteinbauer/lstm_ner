@@ -64,8 +64,8 @@ if __name__ == '__main__':
         model_dir=model_dir,
     )
     ner_lstm_crf.model_summary()
-    # test_data_path = os.path.join(data_dir, 'testb.words.txt')
-    # test_tags_path = os.path.join(data_dir, 'testb.tags.txt')
+    # test_data_path = os.path.join(data_dir, 'test.words.txt')
+    # test_tags_path = os.path.join(data_dir, 'test.tags.txt')
     #
     # test_data = get_word_data_tensors(test_data_path, test_tags_path)
     # ner_lstm_crf.predict()
