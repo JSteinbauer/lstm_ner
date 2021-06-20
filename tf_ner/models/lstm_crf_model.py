@@ -2,7 +2,6 @@
 GloVe Embeddings + chars conv and max pooling + bi-LSTM + CRF
 Implementation based on https://arxiv.org/pdf/1508.01991.pdf
 """
-import os.path
 
 import tensorflow as tf
 from tensorflow.keras.layers import Input
@@ -16,7 +15,6 @@ from tf_ner.models.keras_custom_layers import (
     CRFDecode,
     NumbersToTags,
 )
-from tf_ner.models.keras_data_generation import get_word_data_tensors
 
 
 class NerLstmCrf(NerBase):

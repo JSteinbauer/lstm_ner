@@ -41,12 +41,12 @@ class NerBase(metaclass=ABCMeta):
         'dim': 300,
         'dropout': 0.5,
         'num_oov_buckets': 1,
-        'epochs': 1,
+        'epochs': 20,
         'batch_size': 100,
         'buffer': 15000,
         'filters': 50,
         'kernel_size': 3,
-        'lstm_size': 50 #100
+        'lstm_size': 100,
     }
 
     def __init__(
