@@ -21,7 +21,8 @@ class WordsToNumbers(tf.keras.layers.Layer):
         self.vocab_words = index_table_from_file(self.param_words, num_oov_buckets=self.param_num_oov_buckets)
         self.vocab_tags = index_table_from_file(self.param_tags)
 
-    def call(self, sentence_tensor: Tensor, tag_string_tensor: Tensor) -> Tuple[Tensor, Tensor]:
+    def call(self, inputs: List[Tensor], **kwargs: Any) -> Tuple[Tensor, Tensor]:
+        sentence_tensor, tag_string_tensor = inputs
         token_tensor = self.vocab_words.lookup(sentence_tensor)
         tag_tensor = self.vocab_tags.lookup(tag_string_tensor)
         return token_tensor, tag_tensor
@@ -34,8 +35,14 @@ class WordsToNumbers(tf.keras.layers.Layer):
         return config
 
 class WordsCharsToNumbers(tf.keras.layers.Layer):
-    def __init__(self, param_words: str, param_chars: str, param_tags: str, param_num_oov_buckets: int,
-                 **kwargs: Any) -> None:
+    def __init__(
+            self,
+            param_words: str,
+            param_chars: str,
+            param_tags: str,
+            param_num_oov_buckets: int,
+            **kwargs: Any,
+    ) -> None:
         super(WordsCharsToNumbers, self).__init__(**kwargs)
         self.param_words = param_words
         self.param_chars = param_chars
@@ -46,12 +53,8 @@ class WordsCharsToNumbers(tf.keras.layers.Layer):
         self.vocab_chars = index_table_from_file(self.param_chars, num_oov_buckets=self.param_num_oov_buckets)
         self.vocab_tags = index_table_from_file(self.param_tags)
 
-    def call(
-        self,
-        sentence_tensor: Tensor,
-        char_tensor: Tensor,
-        tag_string_tensor: Tensor,
-    ) -> Tuple[Tensor, Tensor, Tensor]:
+    def call(self, inputs: List[Tensor], **kwargs: Any) -> Tuple[Tensor, Tensor, Tensor]:
+        sentence_tensor, char_tensor, tag_string_tensor = inputs
         token_tensor = self.vocab_words.lookup(sentence_tensor)
         char_id_tensor = self.vocab_chars.lookup(char_tensor)
         tag_tensor = self.vocab_tags.lookup(tag_string_tensor)
@@ -71,7 +74,7 @@ class NumbersToTags(tf.keras.layers.Layer):
         self.param_tags = param_tags
         self.reverse_vocab_tags = index_to_string_table_from_file(self.param_tags)
 
-    def call(self, pred_ids: Tensor) -> Tensor:
+    def call(self, pred_ids: Tensor, **kwargs) -> Tensor:
         pred_strings = self.reverse_vocab_tags.lookup(tf.cast(pred_ids, tf.int64))
         return pred_strings
 
@@ -92,7 +95,7 @@ class WordsToEmbeddings(tf.keras.layers.Layer):
         self.variable = np.vstack([self.glove, [[0.] * self.embedding_dimension]])
         self.variable = tf.Variable(self.variable, dtype=tf.float32, trainable=False)
 
-    def call(self, word_ids: Tensor) -> Tensor:
+    def call(self, word_ids: Tensor, **kwargs) -> Tensor:
         embeddings = tf.nn.embedding_lookup(params=self.variable, ids=word_ids)
         return embeddings
 
@@ -108,7 +111,6 @@ class CRFDecode(tf.keras.layers.Layer):
     def __init__(self, num_tags: int, **kwargs: Any) -> None:
         super(CRFDecode, self).__init__(**kwargs)
         self.num_tags = num_tags
-        self.nwords = None
 
     def build(self, input_shape: List[Any]) -> None:
         assert len(input_shape) == 3, "input tensor must be of rank 3 in CRF_decode!"
@@ -119,9 +121,9 @@ class CRFDecode(tf.keras.layers.Layer):
             trainable=True
         )
 
-    def call(self, logits: Tensor, nwords: Tensor, tags: Tensor) -> Tensor:
-        self.nwords = nwords
-        pred_ids, _ = tfa.text.crf_decode(logits, self.crf_params, self.nwords)
+    def call(self, inputs: List[Tensor], **kwargs: Any) -> Tensor:
+        logits, nwords, tags = inputs
+        pred_ids, _ = tfa.text.crf_decode(logits, self.crf_params, nwords)
 
         # Calculate loss
         log_likelihood, _ = tfa.text.crf_log_likelihood(logits, tags, nwords, self.crf_params)

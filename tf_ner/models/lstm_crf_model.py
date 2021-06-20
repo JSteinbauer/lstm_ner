@@ -45,7 +45,8 @@ class NerLstmCrf(NerBase):
         output = Bidirectional(LSTM(units=self.params['lstm_size'], return_sequences=True))(embeddings)
         output = Dropout(rate=dropout_rate)(output)
         output = Dense(units=num_tags)(output)
-        output = CRFDecode(num_tags=num_tags)(output, input2, tags)
+        # Note that the loss function is defined in the CRFDecode layer
+        output = CRFDecode(num_tags=num_tags)([output, input2, tags])
         output = NumbersToTags(param_tags=tags_path)(output)
 
         model = Model([input1, input2, input3], output)
@@ -65,9 +66,10 @@ if __name__ == '__main__':
         data_dir=data_dir,
         model_dir=model_dir,
     )
+    ner_lstm_crf.model_summary()
     # test_data_path = os.path.join(data_dir, 'testb.words.txt')
     # test_tags_path = os.path.join(data_dir, 'testb.tags.txt')
     #
-    # test_data = get_word_data_tensors(test_data_path, test_tags_path)
+    test_data = get_word_data_tensors(test_data_path, test_tags_path)
     # ner_lstm_crf.predict()
-    ner_lstm_crf.train(14041, 3250)
+    # ner_lstm_crf.train(14041, 3250)
