@@ -10,7 +10,7 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import Tensor
 
-from tf_ner.models.keras_data_generation import get_word_data_tensors, data_generator_words
+from tf_ner.utils.data_handling import get_word_data_tensors, data_generator_words
 from tf_ner.utils.gpu import setup_strategy
 from tf_ner.utils.file_system import is_file, create_dir
 
@@ -177,14 +177,14 @@ class NerLstmBase(metaclass=ABCMeta):
     def predict(self, model_input: list) -> np.ndarray:
         return self.keras_model.predict(model_input)
 
-    def predict_test_file(
+    def predict_on_file(
         self,
         name: str,
         language_model_dir_path: str,
         data_dir: str,
         use_chars: bool,
     ) -> None:
-        """ Write predictions of trained model into files.
+        """ Apply trained model to data from file. Write predictions to another file.
         Args:
             name: Name of the data
             language_model_dir_path: Output directory for saving files

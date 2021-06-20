@@ -4,7 +4,7 @@ from tensorflow.python.keras.layers import Dropout, Bidirectional, LSTM, Dense
 from tensorflow.python.keras.models import Model
 
 from tf_ner.models.base_model import NerLstmBase
-from tf_ner.models.keras_custom_layers import (
+from tf_ner.models.custom_layers import (
     WordsToNumbers,
     WordsToEmbeddings,
     CRFDecode,
