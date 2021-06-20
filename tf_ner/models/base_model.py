@@ -8,6 +8,7 @@ from typing import Optional, Dict, Any, Generator, List
 
 import numpy as np
 import tensorflow as tf
+from tensorflow import Tensor
 
 from tf_ner.models.keras_data_generation import get_word_data_tensors, data_generator_words
 from tf_ner.utils.gpu import setup_strategy
@@ -165,15 +166,6 @@ class NerLstmBase(metaclass=ABCMeta):
         )
 
         log.debug('DONE Training of %s in %f.2f s.', self.__class__.__name__, time.time() - start_time)
-        for name in ['train', 'testa', 'testb']:
-            self.write_predictions(
-                keras_model=self.keras_model,
-                name=name,
-                language_model_dir_path=self.model_dir,
-                data_dir=self.data_dir,
-                use_chars=False
-            )
-
         self.keras_model.save_weights(filepath=os.path.join(self.model_dir, self.WEIGHTS_FILENAME))
 
     def load_weights(self, model_dir: str) -> None:
@@ -185,20 +177,15 @@ class NerLstmBase(metaclass=ABCMeta):
     def predict(self, model_input: list) -> np.ndarray:
         return self.keras_model.predict(model_input)
 
-    @staticmethod
-    def write_predictions(
-        keras_model: tf.keras.Model,
+    def predict_test_file(
+        self,
         name: str,
         language_model_dir_path: str,
         data_dir: str,
         use_chars: bool,
     ) -> None:
         """ Write predictions of trained model into files.
-
-        NOTE: static method needed for multiprocessing
-
         Args:
-            keras_model: Trained keras model
             name: Name of the data
             language_model_dir_path: Output directory for saving files
             data_dir: Input directory to read data from
@@ -208,23 +195,31 @@ class NerLstmBase(metaclass=ABCMeta):
         os.makedirs(language_model_prediction_path, exist_ok=True)
 
         score_file_path: str = os.path.join(language_model_prediction_path, f'score_{name}.preds.txt')
-        with open(score_file_path, 'wb') as f:
-            test_data_path = fwords(name, data_dir)
-            test_tags_path = ftags(name, data_dir)
+        test_data_path = fwords(name, data_dir)
+        test_tags_path = ftags(name, data_dir)
 
-            # If there's no data to predict => skip
-            if not os.path.getsize(test_data_path):
-                return None
+        # If there's no data to predict => skip
+        if not os.path.getsize(test_data_path):
+            return None
 
-            test_data = get_word_data_tensors(test_data_path, test_tags_path, use_chars=use_chars)
-            pred_ids = keras_model.predict(test_data)
+        test_data = get_word_data_tensors(test_data_path, test_tags_path, use_chars=use_chars)
+        predictions = self.keras_model.predict(test_data)
+        # Write predictions to file
+        self.write_predictions(score_file_path, test_data, predictions)
 
-            pred_entities = pred_ids
-            true_entities = test_data[2]
-            original_words = test_data[0]
-
-            for n in range(pred_ids.shape[0]):
-                for m in range(test_data[1][n]):
-                    f.write(b' '.join([original_words[n, m].numpy(), true_entities[n, m].numpy(), pred_entities[n, m]]))
+    @staticmethod
+    def write_predictions(file_dir: str, inputs: List[Tensor], predictions: Tensor):
+        """
+        Write predictions to file.
+        Args:
+            file_dir: Directory of output file to which predictions are written
+            inputs: The input tensors used to make predictions
+            predictions: The predicted labels
+        """
+        words, nwords, labels = inputs
+        with open(file_dir, 'wb') as f:
+            for n in range(predictions.shape[0]):
+                for m in range(nwords[n]):
+                    f.write(b' '.join([words[n, m].numpy(), labels[n, m].numpy(), predictions[n, m]]))
                     f.write(b'\n')
                 f.write(b'\n')
