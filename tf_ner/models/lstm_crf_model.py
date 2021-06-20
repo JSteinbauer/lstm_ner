@@ -1,8 +1,3 @@
-"""
-GloVe Embeddings + chars conv and max pooling + bi-LSTM + CRF
-Implementation based on https://arxiv.org/pdf/1508.01991.pdf
-"""
-
 import tensorflow as tf
 from tensorflow.keras.layers import Input
 from tensorflow.python.keras.layers import Dropout, Bidirectional, LSTM, Dense
@@ -18,6 +13,10 @@ from tf_ner.models.keras_custom_layers import (
 
 
 class NerLstmCrf(NerBase):
+    """
+    GloVe Embeddings + chars conv and max pooling + bi-LSTM + CRF
+    Implementation based on https://arxiv.org/pdf/1508.01991.pdf
+    """
     def _build_keras_model(self) -> tf.keras.Model:
         tags_path: str = self.params['tags']
         with open(tags_path) as f:

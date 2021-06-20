@@ -7,11 +7,6 @@ from tensorflow import Tensor
 from tensorflow.python.ops.lookup_ops import index_table_from_file, index_to_string_table_from_file
 
 
-# from tensorflow.python.types.core import Tensor
-
-
-# ============================ Custom Layers ============================ #
-
 class WordsToNumbers(tf.keras.layers.Layer):
     def __init__(self, param_words: str, param_tags: str, param_num_oov_buckets: int, **kwargs: Any) -> None:
         super(WordsToNumbers, self).__init__(**kwargs)
@@ -91,6 +86,7 @@ class WordsToEmbeddings(tf.keras.layers.Layer):
     Custom keras embedding layer using Glove.
     This layer is deterministic - it initializes its weight from upon loading word embeddings from a .npz file.
     """
+
     def __init__(self, glove_path: str, embedding_dimension: int, **kwargs: Any) -> None:
         super(WordsToEmbeddings, self).__init__(**kwargs)
 
@@ -126,6 +122,7 @@ class CRFDecode(tf.keras.layers.Layer):
     see J. Lafferty, A. McCallum, and F.Pereira. 2001. Conditional random fields:
     Probabilistic models for segmenting and labeling sequence data. Proceedings of ICML.
     """
+
     def __init__(self, num_tags: int, **kwargs: Any) -> None:
         super(CRFDecode, self).__init__(**kwargs)
         self.num_tags = num_tags
