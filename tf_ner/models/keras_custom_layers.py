@@ -21,11 +21,11 @@ class WordsToNumbers(tf.keras.layers.Layer):
         self.vocab_words = index_table_from_file(self.param_words, num_oov_buckets=self.param_num_oov_buckets)
         self.vocab_tags = index_table_from_file(self.param_tags)
 
-    def call(self, inputs: List[Tensor], **kwargs: Any) -> Tuple[Tensor, Tensor]:
+    def call(self, inputs: List[Tensor], **kwargs: Any) -> List[Tensor]:
         sentence_tensor, tag_string_tensor = inputs
         token_tensor = self.vocab_words.lookup(sentence_tensor)
         tag_tensor = self.vocab_tags.lookup(tag_string_tensor)
-        return token_tensor, tag_tensor
+        return [token_tensor, tag_tensor]
 
     def get_config(self) -> Dict:
         config: Dict = super(WordsToNumbers, self).get_config()
@@ -53,12 +53,12 @@ class WordsCharsToNumbers(tf.keras.layers.Layer):
         self.vocab_chars = index_table_from_file(self.param_chars, num_oov_buckets=self.param_num_oov_buckets)
         self.vocab_tags = index_table_from_file(self.param_tags)
 
-    def call(self, inputs: List[Tensor], **kwargs: Any) -> Tuple[Tensor, Tensor, Tensor]:
+    def call(self, inputs: List[Tensor], **kwargs: Any) -> List[Tensor]:
         sentence_tensor, char_tensor, tag_string_tensor = inputs
         token_tensor = self.vocab_words.lookup(sentence_tensor)
         char_id_tensor = self.vocab_chars.lookup(char_tensor)
         tag_tensor = self.vocab_tags.lookup(tag_string_tensor)
-        return token_tensor, char_id_tensor, tag_tensor
+        return [token_tensor, char_id_tensor, tag_tensor]
 
     def get_config(self) -> Dict:
         config: Dict = super(WordsCharsToNumbers, self).get_config()

@@ -35,7 +35,7 @@ class NerLstmCrf(NerBase):
             param_words=self.params['words'],
             param_tags=tags_path,
             param_num_oov_buckets=self.params['num_oov_buckets'],
-        )(input1, input3)
+        )([input1, input3])
         embeddings = WordsToEmbeddings(
             glove_path=self.params['glove'],
             embedding_dimension=self.params['dim'],
@@ -70,6 +70,6 @@ if __name__ == '__main__':
     # test_data_path = os.path.join(data_dir, 'testb.words.txt')
     # test_tags_path = os.path.join(data_dir, 'testb.tags.txt')
     #
-    test_data = get_word_data_tensors(test_data_path, test_tags_path)
+    # test_data = get_word_data_tensors(test_data_path, test_tags_path)
     # ner_lstm_crf.predict()
-    # ner_lstm_crf.train(14041, 3250)
+    ner_lstm_crf.train(14041, 3250)

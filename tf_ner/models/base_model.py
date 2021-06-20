@@ -225,6 +225,6 @@ class NerBase(metaclass=ABCMeta):
 
             for n in range(pred_ids.shape[0]):
                 for m in range(test_data[1][n]):
-                    f.write(
-                        b' '.join([original_words[n, m], true_entities[n, m], pred_entities[n, m]]) + b'\n')
+                    f.write(b' '.join([original_words[n, m].numpy(), true_entities[n, m].numpy(), pred_entities[n, m]]))
+                    f.write(b'\n')
                 f.write(b'\n')
