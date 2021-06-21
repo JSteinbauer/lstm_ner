@@ -2,6 +2,7 @@ from typing import List
 
 import tensorflow as tf
 
+
 def phrase_to_model_input(phrase: str, use_chars: bool = False) -> List:
     """
     Args:

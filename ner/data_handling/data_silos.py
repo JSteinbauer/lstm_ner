@@ -1,4 +1,6 @@
+import math
 import os
+from abc import abstractmethod, ABCMeta
 from enum import Enum
 from typing import List, Dict, Generator, Any
 
@@ -15,7 +17,7 @@ class DatasetName(Enum):
     TEST: str = 'test'
 
 
-class NerDataSiloBase:
+class NerDataSiloBase(metaclass=ABCMeta):
     def __init__(
             self,
             data_directory: str,
@@ -48,6 +50,26 @@ class NerDataSiloBase:
         with open(file_name) as f:
             return f.readlines()
 
+    def get_dataset_size(self, dataset_name: str) -> int:
+        """ Returns number of samples in dataset """
+        return len(self.data_dict[dataset_name][0])
+
+    def get_training_steps(self, epochs: int) -> int:
+        """ Calculate and return the number of training steps """
+        return epochs*math.ceil(self.get_dataset_size(dataset_name=DatasetName.TRAIN)/self.batch_size)
+
+    def get_valid_steps(self, epochs: int = 1) -> int:
+        """ Calculate and return the number of validation steps """
+        return epochs*math.ceil(self.get_dataset_size(dataset_name=DatasetName.VALID)/self.batch_size)
+
+    @abstractmethod
+    def batch_generator(self, dataset_name: DatasetName) -> Generator:
+        pass
+
+    @abstractmethod
+    def get_data_tensors(self, dataset_name: DatasetName) -> List[Tensor]:
+        pass
+
 
 class LstmNerDataSilo(NerDataSiloBase):
     """
@@ -58,27 +80,25 @@ class LstmNerDataSilo(NerDataSiloBase):
 
     def __init__(
             self,
-            words_path: str,
-            tags_path: str,
+            data_directory: str,
             batch_size: int = 20,
             use_chars: bool = True,
             **kwargs,
     ) -> None:
-        super(LstmNerDataSilo, self).__init__(words_path, tags_path, batch_size, **kwargs)
+        super(LstmNerDataSilo, self).__init__(data_directory, batch_size, **kwargs)
         # Whether or not to use character information
         self.use_chars = use_chars
 
-    def batch_generator(self, dataset_name: DatasetName) -> Generator:
+    def batch_generator(self, dataset_name: str) -> Generator:
         """
         Generate data batches for LstmCrf (self.use_chars=False) or CharsConvLstmCrf (self.use_chars=True)
         Args:
-            dataset_name: Name of the
-
+            dataset_name: Name of the dataset
         Returns:
-
+            A data generator
         """
         # Get requested dataset from data_dict
-        word_lines, tag_lines = self.data_dict[dataset_name.value]
+        word_lines, tag_lines = self.data_dict[dataset_name]
 
         counter = 0
         num_docs = len(word_lines)
