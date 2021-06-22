@@ -2,7 +2,7 @@ import math
 import os
 from abc import abstractmethod, ABCMeta
 from enum import Enum
-from typing import List, Dict, Generator, Any
+from typing import List, Dict, Generator, Any, Optional
 
 import numpy as np
 from tensorflow import Tensor
@@ -27,6 +27,7 @@ class NerDataSiloBase(metaclass=ABCMeta):
             self,
             data_directory: str,
             batch_size: int = 20,
+            random_seed: Optional[int] = None,
             **kwargs: Any,
     ) -> None:
         self.data_directory = data_directory
@@ -35,6 +36,9 @@ class NerDataSiloBase(metaclass=ABCMeta):
         self.data_dict: Dict[str, Any] = dict()
         # Fills data dict by reading data from data_directory
         self._fill_data_dict()
+        # Optionally set random seed
+        if random_seed:
+            np.random.seed(random_seed)
 
     def _fill_data_dict(self) -> None:
         """ Try to fill self.data_dict by reading in data from directory """
@@ -86,10 +90,11 @@ class LstmNerDataSilo(NerDataSiloBase):
             self,
             data_directory: str,
             batch_size: int = 20,
-            use_chars: bool = True,
+            use_chars: bool = False,
+            random_seed: Optional[int] = None,
             **kwargs,
     ) -> None:
-        super(LstmNerDataSilo, self).__init__(data_directory, batch_size, **kwargs)
+        super(LstmNerDataSilo, self).__init__(data_directory, batch_size, random_seed, **kwargs)
         # Whether or not to use character information
         self.use_chars = use_chars
 
