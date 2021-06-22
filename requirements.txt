@@ -1,0 +1,5 @@
+tensorflow-addons==0.13.0
+marshmallow==3.12.1
+marshmallow-enum==1.5.1
+typing-inspect==0.7.1
+pytest==6.2.4
