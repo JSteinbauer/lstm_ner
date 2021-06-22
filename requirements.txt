@@ -3,3 +3,5 @@ marshmallow==3.12.1
 marshmallow-enum==1.5.1
 typing-inspect==0.7.1
 pytest==6.2.4
+grpcio==1.31.0
+grpcio-tools==1.31.0

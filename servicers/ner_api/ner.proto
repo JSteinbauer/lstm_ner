@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+/////// Services ///////
+
+service NER {
+    rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse) {}
+
+    rpc RunTraining (google.protobuf.Empty) returns (RunTrainingResponse) {}
+}
+
+/////// Messages ///////
+
+message ExtractEntitiesRequest {
+    enum ExtractionMode {
+        // invoke only a single model for inference
+        SINGLE = 0;
+        // average over several models
+        ENSEMBLE = 1;
+    }
+    // Required. Text input - a string, in the form of a sentence.
+    string text = 1;
+
+    // Extraction mode
+    ExtractionMode mode = 2;
+}
+
+message ExtractEntitiesResponse {
+    // List of extracted entities
+    repeated string entities = 1;
+}
+
+message RunTrainingResponse {
+    // List of potential error messages
+    repeated string error_messages = 1;
+}
