@@ -18,6 +18,11 @@ class DatasetName(Enum):
 
 
 class NerDataSiloBase(metaclass=ABCMeta):
+    """
+    Class to manage data for training/evaluation of NER Models.
+    Upon initialization, it searches the data_directory for data files
+    named '{train/valid/test}.words.txt' and '{train/valid/test}.tags.txt'
+    """
     def __init__(
             self,
             data_directory: str,
@@ -77,7 +82,6 @@ class LstmNerDataSilo(NerDataSiloBase):
         - Applicable to models that consider character information, e.g. CharsConvLstmCrf (use_chars=True)
         - Applicable to models that operate on a word level only e.g. LstmCrf (use_chars=False)
     """
-
     def __init__(
             self,
             data_directory: str,
