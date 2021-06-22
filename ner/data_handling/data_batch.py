@@ -19,11 +19,11 @@ class NerDataBatch:
 
     def clear_data(self) -> None:
         """ Resets all data lists to be empty """
-        self.sentence_list = field(default_factory=list)
-        self.nword_list = field(default_factory=list)
-        self.char_list_list = field(default_factory=list)
-        self.char_length_list = field(default_factory=list)
-        self.tag_list = field(default_factory=list)
+        self.sentence_list.clear()
+        self.nword_list.clear()
+        self.char_list_list.clear()
+        self.char_length_list.clear()
+        self.tag_list.clear()
 
     def add_sample(self, sample_phrase: str, sample_tags: str) -> None:
         """

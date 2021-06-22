@@ -59,17 +59,17 @@ class NerDataSiloBase(metaclass=ABCMeta):
         with open(file_name) as f:
             return f.readlines()
 
-    def get_dataset_size(self, dataset_name: str) -> int:
+    def get_dataset_size(self, dataset_name: DatasetName) -> int:
         """ Returns number of samples in dataset """
-        return len(self.data_dict[dataset_name][0])
+        return len(self.data_dict[dataset_name.value][0])
 
-    def get_training_steps(self, epochs: int) -> int:
-        """ Calculate and return the number of training steps """
-        return epochs*math.ceil(self.get_dataset_size(dataset_name=DatasetName.TRAIN)/self.batch_size)
+    def get_training_steps_per_epoch(self) -> int:
+        """ Calculate and return the number of training steps per epoch """
+        return math.ceil(self.get_dataset_size(dataset_name=DatasetName.TRAIN)/self.batch_size)
 
-    def get_valid_steps(self, epochs: int = 1) -> int:
-        """ Calculate and return the number of validation steps """
-        return epochs*math.ceil(self.get_dataset_size(dataset_name=DatasetName.VALID)/self.batch_size)
+    def get_valid_steps_per_epoch(self) -> int:
+        """ Calculate and return the number of validation steps per epoch """
+        return math.ceil(self.get_dataset_size(dataset_name=DatasetName.VALID)/self.batch_size)
 
     @abstractmethod
     def batch_generator(self, dataset_name: DatasetName) -> Generator:
@@ -98,7 +98,7 @@ class LstmNerDataSilo(NerDataSiloBase):
         # Whether or not to use character information
         self.use_chars = use_chars
 
-    def batch_generator(self, dataset_name: str) -> Generator:
+    def batch_generator(self, dataset_name: DatasetName) -> Generator:
         """
         Generate data batches for LstmCrf (self.use_chars=False) or CharsConvLstmCrf (self.use_chars=True)
         Args:
@@ -107,7 +107,7 @@ class LstmNerDataSilo(NerDataSiloBase):
             A data generator
         """
         # Get requested dataset from data_dict
-        word_lines, tag_lines = self.data_dict[dataset_name]
+        word_lines, tag_lines = self.data_dict[dataset_name.value]
 
         counter = 0
         num_docs = len(word_lines)
