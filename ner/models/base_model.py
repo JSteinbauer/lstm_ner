@@ -9,7 +9,8 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import Tensor
 
-from ner.data_handling.data_silos import LstmNerDataSilo, DatasetName
+from ner.data_handling.data_silos import LstmNerDataSilo, DatasetName, NerDataSiloBase
+from ner.data_handling.helper import phrase_to_model_input
 from ner.models.config_dataclasses import NerLstmConfig
 from ner.utils.gpu import setup_strategy
 from ner.utils.file_system import is_file, create_dir
@@ -58,7 +59,7 @@ class NerGloveBase(metaclass=ABCMeta):
         # Build the model
         self.keras_model = self.build_model(random_seed=random_seed)
         # Initialize data silo
-        self.data_silo: Optional[LstmNerDataSilo] = None
+        self.data_silo: Optional[NerDataSiloBase] = None
 
     def _validate_resource_dirs(self):
         """ Validate the existence of relevant files """
@@ -106,17 +107,17 @@ class NerGloveBase(metaclass=ABCMeta):
         """ Abstract method to be replaced with implementation of model. """
         pass
 
-    def train(self, data_silo: Optional[LstmNerDataSilo] = None) -> None:
+    def train(self, data_silo: Optional[NerDataSiloBase] = None) -> None:
         """ Trains the model and stores the results in self.model_dir """
         if not (data_silo or self.data_silo):
             raise ValueError('Datasilo must be defined for training!')
 
-        data_silo: Optional[LstmNerDataSilo] = data_silo or self.data_silo
+        data_silo: Optional[NerDataSiloBase] = data_silo or self.data_silo
         # Run training
         self._train(data_silo=data_silo)
         self.save_weights()
 
-    def _train(self, data_silo: LstmNerDataSilo) -> None:
+    def _train(self, data_silo: NerDataSiloBase) -> None:
         """ Runs the training of the model """
         epochs: int = self.config.epochs
 
@@ -173,26 +174,29 @@ class NerGloveBase(metaclass=ABCMeta):
             raise FileNotFoundError(f'Weights file "{weights_path}" not found.')
         self.keras_model.load_weights(filepath=weights_path)
 
-    def predict(self, model_input: list) -> np.ndarray:
+    def predict(self, text: str) -> np.ndarray:
+        model_input = phrase_to_model_input(text)
         return self.keras_model.predict(model_input)
 
-    def predict_on_file(
+    def predict_on_dataset(
             self,
             name: str,
-            language_model_dir_path: str,
-
+            output_path: str,
+            data_silo: Optional[NerDataSiloBase] = None,
     ) -> None:
         """ Apply trained model to data from file. Write predictions to another file.
         Args:
             name: Name of the data
-            language_model_dir_path: Output directory for saving files
-            data_dir: Input directory to read data from
-            use_chars: Whether or not to use character information
+            output_path: Output directory for saving files
+            data_silo: Optional data silo (if not yet defined on object level)
         """
-        language_model_prediction_path = os.path.join(language_model_dir_path, 'predictions')
-        os.makedirs(language_model_prediction_path, exist_ok=True)
+        if not (data_silo or self.data_silo):
+            raise ValueError('Datasilo must be defined for prediction on dataset!')
 
-        score_file_path: str = os.path.join(language_model_prediction_path, f'score_{name}.preds.txt')
+        prediction_path = os.path.join(output_path, 'predictions')
+        os.makedirs(prediction_path, exist_ok=True)
+
+        score_file_path: str = os.path.join(prediction_path, f'score_{name}.preds.txt')
 
         test_data = self.data_silo.get_data_tensors(DatasetName.TEST)
         predictions = self.keras_model.predict(test_data)

@@ -35,7 +35,7 @@ class NerLstmCrf(NerGloveBase):
     ) -> None:
         super(NerLstmCrf, self).__init__(data_dir, model_dir, config, **kwargs)
         # Set up data silo for training
-        self.data_silo = LstmNerDataSilo(
+        self.data_silo: LstmNerDataSilo = LstmNerDataSilo(
             data_directory=data_dir,
             batch_size=self.config.batch_size,
             use_chars=False,

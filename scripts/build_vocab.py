@@ -15,7 +15,7 @@ def get_words() -> Set[str]:
 
     print('Build vocab words (may take a while)')
     counter_words = Counter()
-    for n in ['train', 'testa', 'testb']:
+    for n in ['train', 'valid', 'test']:
         with Path(words(n)).open() as f:
             for line in f:
                 counter_words.update(line.strip().split())
