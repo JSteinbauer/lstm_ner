@@ -7,80 +7,6 @@ from tensorflow import Tensor
 from tensorflow.python.ops.lookup_ops import index_table_from_file, index_to_string_table_from_file
 
 
-class WordsToNumbers(tf.keras.layers.Layer):
-    def __init__(self, param_words: str, param_tags: str, param_num_oov_buckets: int, **kwargs: Any) -> None:
-        super(WordsToNumbers, self).__init__(**kwargs)
-        self.param_words = param_words
-        self.param_tags = param_tags
-        self.param_num_oov_buckets = param_num_oov_buckets
-        self.vocab_words = index_table_from_file(self.param_words, num_oov_buckets=self.param_num_oov_buckets)
-        self.vocab_tags = index_table_from_file(self.param_tags)
-
-    def call(self, inputs: List[Tensor], **kwargs: Any) -> List[Tensor]:
-        sentence_tensor, tag_string_tensor = inputs
-        token_tensor = self.vocab_words.lookup(sentence_tensor)
-        tag_tensor = self.vocab_tags.lookup(tag_string_tensor)
-        return [token_tensor, tag_tensor]
-
-    def get_config(self) -> Dict:
-        config: Dict = super(WordsToNumbers, self).get_config()
-        config.update({'param_words': self.param_words,
-                       'param_tags': self.param_tags,
-                       'param_num_oov_buckets': self.param_num_oov_buckets})
-        return config
-
-
-class WordsCharsToNumbers(tf.keras.layers.Layer):
-    def __init__(
-            self,
-            param_words: str,
-            param_chars: str,
-            param_tags: str,
-            param_num_oov_buckets: int,
-            **kwargs: Any,
-    ) -> None:
-        super(WordsCharsToNumbers, self).__init__(**kwargs)
-        self.param_words = param_words
-        self.param_chars = param_chars
-        self.param_tags = param_tags
-        self.param_num_oov_buckets = param_num_oov_buckets
-
-        self.vocab_words = index_table_from_file(self.param_words, num_oov_buckets=self.param_num_oov_buckets)
-        self.vocab_chars = index_table_from_file(self.param_chars, num_oov_buckets=self.param_num_oov_buckets)
-        self.vocab_tags = index_table_from_file(self.param_tags)
-
-    def call(self, inputs: List[Tensor], **kwargs: Any) -> List[Tensor]:
-        sentence_tensor, char_tensor, tag_string_tensor = inputs
-        token_tensor = self.vocab_words.lookup(sentence_tensor)
-        char_id_tensor = self.vocab_chars.lookup(char_tensor)
-        tag_tensor = self.vocab_tags.lookup(tag_string_tensor)
-        return [token_tensor, char_id_tensor, tag_tensor]
-
-    def get_config(self) -> Dict:
-        config: Dict = super(WordsCharsToNumbers, self).get_config()
-        config.update({'param_words': self.param_words,
-                       'param_chars': self.param_chars,
-                       'param_tags': self.param_tags,
-                       'param_num_oov_buckets': self.param_num_oov_buckets})
-        return config
-
-
-class NumbersToTags(tf.keras.layers.Layer):
-    def __init__(self, param_tags: str, **kwargs: Any) -> None:
-        super(NumbersToTags, self).__init__(**kwargs)
-        self.param_tags = param_tags
-        self.reverse_vocab_tags = index_to_string_table_from_file(self.param_tags)
-
-    def call(self, pred_ids: Tensor, **kwargs) -> Tensor:
-        pred_strings = self.reverse_vocab_tags.lookup(tf.cast(pred_ids, tf.int64))
-        return pred_strings
-
-    def get_config(self) -> Dict:
-        config: Dict = super(NumbersToTags, self).get_config()
-        config.update({'param_tags': self.param_tags})
-        return config
-
-
 class WordsToEmbeddings(tf.keras.layers.Layer):
     """
     Custom keras embedding layer using Glove.
@@ -169,4 +95,81 @@ class CRFDecode(tf.keras.layers.Layer):
         """ Get config - needed to store/load layer weights. """
         config: Dict = super(CRFDecode, self).get_config()
         config.update({"num_tags": self.num_tags})
+        return config
+
+
+class WordsToNumbers(tf.keras.layers.Layer):
+    """ Static layer that transforms words (and tags) into numbers """
+    def __init__(self, param_words: str, param_tags: str, param_num_oov_buckets: int, **kwargs: Any) -> None:
+        super(WordsToNumbers, self).__init__(**kwargs)
+        self.param_words = param_words
+        self.param_tags = param_tags
+        self.param_num_oov_buckets = param_num_oov_buckets
+        self.vocab_words = index_table_from_file(self.param_words, num_oov_buckets=self.param_num_oov_buckets)
+        self.vocab_tags = index_table_from_file(self.param_tags)
+
+    def call(self, inputs: List[Tensor], **kwargs: Any) -> List[Tensor]:
+        sentence_tensor, tag_string_tensor = inputs
+        token_tensor = self.vocab_words.lookup(sentence_tensor)
+        tag_tensor = self.vocab_tags.lookup(tag_string_tensor)
+        return [token_tensor, tag_tensor]
+
+    def get_config(self) -> Dict:
+        config: Dict = super(WordsToNumbers, self).get_config()
+        config.update({'param_words': self.param_words,
+                       'param_tags': self.param_tags,
+                       'param_num_oov_buckets': self.param_num_oov_buckets})
+        return config
+
+
+class WordsCharsToNumbers(tf.keras.layers.Layer):
+    def __init__(
+            self,
+            param_words: str,
+            param_chars: str,
+            param_tags: str,
+            param_num_oov_buckets: int,
+            **kwargs: Any,
+    ) -> None:
+        """ Static layer that transforms words, their characters and tags into numbers """
+        super(WordsCharsToNumbers, self).__init__(**kwargs)
+        self.param_words = param_words
+        self.param_chars = param_chars
+        self.param_tags = param_tags
+        self.param_num_oov_buckets = param_num_oov_buckets
+
+        self.vocab_words = index_table_from_file(self.param_words, num_oov_buckets=self.param_num_oov_buckets)
+        self.vocab_chars = index_table_from_file(self.param_chars, num_oov_buckets=self.param_num_oov_buckets)
+        self.vocab_tags = index_table_from_file(self.param_tags)
+
+    def call(self, inputs: List[Tensor], **kwargs: Any) -> List[Tensor]:
+        sentence_tensor, char_tensor, tag_string_tensor = inputs
+        token_tensor = self.vocab_words.lookup(sentence_tensor)
+        char_id_tensor = self.vocab_chars.lookup(char_tensor)
+        tag_tensor = self.vocab_tags.lookup(tag_string_tensor)
+        return [token_tensor, char_id_tensor, tag_tensor]
+
+    def get_config(self) -> Dict:
+        config: Dict = super(WordsCharsToNumbers, self).get_config()
+        config.update({'param_words': self.param_words,
+                       'param_chars': self.param_chars,
+                       'param_tags': self.param_tags,
+                       'param_num_oov_buckets': self.param_num_oov_buckets})
+        return config
+
+
+class NumbersToTags(tf.keras.layers.Layer):
+    """ Static layer that transforms numbers back to tags """
+    def __init__(self, param_tags: str, **kwargs: Any) -> None:
+        super(NumbersToTags, self).__init__(**kwargs)
+        self.param_tags = param_tags
+        self.reverse_vocab_tags = index_to_string_table_from_file(self.param_tags)
+
+    def call(self, pred_ids: Tensor, **kwargs) -> Tensor:
+        pred_strings = self.reverse_vocab_tags.lookup(tf.cast(pred_ids, tf.int64))
+        return pred_strings
+
+    def get_config(self) -> Dict:
+        config: Dict = super(NumbersToTags, self).get_config()
+        config.update({'param_tags': self.param_tags})
         return config

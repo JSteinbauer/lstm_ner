@@ -1,5 +1,3 @@
-import os
-from copy import copy
 from typing import Optional
 
 import tensorflow as tf
@@ -8,7 +6,6 @@ from tensorflow.python.keras.layers import Dropout, Bidirectional, LSTM, Dense
 from tensorflow.python.keras.models import Model
 
 from ner.data_handling.data_silos import LstmNerDataSilo
-from ner.data_handling.helper import phrase_to_model_input
 from ner.models.base_model import NerGloveBase
 from ner.models.config_dataclasses import NerLstmConfig
 from ner.models.custom_layers import (
@@ -95,9 +92,9 @@ def run_train():
         model_dir=model_dir,
     )
     ner_lstm_crf.model_summary()
-
     ner_lstm_crf.train()
 
+
 if __name__ == '__main__':
-    run_model()
+    run_train()
 
