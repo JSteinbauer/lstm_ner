@@ -3,13 +3,14 @@ import logging
 import os
 import time
 from abc import abstractmethod, ABCMeta
-from typing import Optional, Dict, Any, Generator, List
+from encodings.utf_8 import decode
+from typing import Optional, Generator, List
 
 import numpy as np
 import tensorflow as tf
 from tensorflow import Tensor
 
-from ner.data_handling.data_silos import LstmNerDataSilo, DatasetName, NerDataSiloBase
+from ner.data_handling.data_silos import DatasetName, NerDataSiloBase
 from ner.data_handling.helper import phrase_to_model_input
 from ner.models.config_dataclasses import NerLstmConfig
 from ner.utils.gpu import setup_strategy
@@ -44,6 +45,8 @@ class NerGloveBase(metaclass=ABCMeta):
         self.data_dir = data_dir
         self.model_dir = model_dir
         self.random_seed = random_seed
+        if random_seed:
+            self.model_dir = os.path.join(model_dir, str(random_seed))
 
         # Define and validate resource directories
         self.vocab_words_dir: str = os.path.join(self.data_dir, 'vocab.words.txt')
@@ -107,15 +110,24 @@ class NerGloveBase(metaclass=ABCMeta):
         """ Abstract method to be replaced with implementation of model. """
         pass
 
-    def train(self, data_silo: Optional[NerDataSiloBase] = None) -> None:
-        """ Trains the model and stores the results in self.model_dir """
+    def train(self, data_silo: Optional[NerDataSiloBase] = None, epochs: Optional[int] = None) -> None:
+        """
+        Trains the model and stores the results and config in self.model_dir
+        Args:
+            data_silo: Optional data silo holding the training data (if not parsed explicitly, it must be defined
+                as an object attribute)
+            epochs: Optional parameter to overwrite the epochs specified in self.config
+        """
         if not (data_silo or self.data_silo):
             raise ValueError('Datasilo must be defined for training!')
+        if epochs:
+            self.config.epochs = epochs
 
         data_silo: Optional[NerDataSiloBase] = data_silo or self.data_silo
         # Run training
         self._train(data_silo=data_silo)
         self.save_weights()
+        self.save_model_config()
 
     def _train(self, data_silo: NerDataSiloBase) -> None:
         """ Runs the training of the model """
@@ -174,17 +186,20 @@ class NerGloveBase(metaclass=ABCMeta):
             raise FileNotFoundError(f'Weights file "{weights_path}" not found.')
         self.keras_model.load_weights(filepath=weights_path)
 
-    def predict(self, text: str) -> np.ndarray:
+    def extract_entities(self, text: str) -> List[str]:
+        """ Extract entities from an input text and return them """
         model_input = phrase_to_model_input(text)
-        return self.keras_model.predict(model_input)
+        model_output: np.ndarray = self.keras_model.predict(model_input)
+        # Decode and return the model output
+        return [decode(x)[0] for x in model_output[0]]
 
-    def predict_on_dataset(
+    def evaluate_on_dataset(
             self,
             name: str,
             output_path: str,
             data_silo: Optional[NerDataSiloBase] = None,
     ) -> None:
-        """ Apply trained model to data from file. Write predictions to another file.
+        """ Apply trained model to data from file. Write predictions to another file for evaluation.
         Args:
             name: Name of the data
             output_path: Output directory for saving files
@@ -196,15 +211,15 @@ class NerGloveBase(metaclass=ABCMeta):
         prediction_path = os.path.join(output_path, 'predictions')
         os.makedirs(prediction_path, exist_ok=True)
 
-        score_file_path: str = os.path.join(prediction_path, f'score_{name}.preds.txt')
+        scores_path: str = os.path.join(prediction_path, f'score_{name}.preds.txt')
 
         test_data = self.data_silo.get_data_tensors(DatasetName.TEST)
         predictions = self.keras_model.predict(test_data)
         # Write predictions to file
-        self.write_predictions(score_file_path, test_data, predictions)
+        self.write_predictions(scores_path, test_data, predictions)
 
     @staticmethod
-    def write_predictions(file_dir: str, inputs: List[Tensor], predictions: Tensor):
+    def write_predictions(file_dir: str, inputs: List[Tensor], predictions: Tensor) -> None:
         """
         Write predictions to file.
         Args:

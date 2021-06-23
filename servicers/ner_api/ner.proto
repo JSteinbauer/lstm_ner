@@ -1,13 +1,11 @@
 syntax = "proto3";
 
-import "google/protobuf/empty.proto";
-
 /////// Services ///////
 
 service NER {
     rpc ExtractEntities(ExtractEntitiesRequest) returns (ExtractEntitiesResponse) {}
 
-    rpc RunTraining (google.protobuf.Empty) returns (RunTrainingResponse) {}
+    rpc RunTraining (RunTrainingRequest) returns (RunTrainingResponse) {}
 }
 
 /////// Messages ///////
@@ -31,6 +29,10 @@ message ExtractEntitiesResponse {
     repeated string entities = 1;
 }
 
+message RunTrainingRequest {
+    // Number of epochs to be used for training
+    int32 epochs = 1;
+}
 message RunTrainingResponse {
     // List of potential error messages
     repeated string error_messages = 1;

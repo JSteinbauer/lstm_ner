@@ -18,3 +18,6 @@ generate_grpc_servicers:
 	for f in $$(find ${NER_API_DIR} -name '*.proto'); do \
 		python -m grpc_tools.protoc -I${NER_API_DIR} --python_out=${NER_SERVICER_DIR} --grpc_python_out=${NER_SERVICER_DIR} $$f; \
 	done
+
+run_server:
+	python -m servicers.ner_server

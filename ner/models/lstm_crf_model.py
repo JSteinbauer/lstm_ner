@@ -72,59 +72,32 @@ class NerLstmCrf(NerGloveBase):
         return model
 
 
-def run_model(int_seed: int):
-    seed(int_seed)
-    set_seed(int_seed)
-
+def run_model():
+    """ Test running the model """
     data_dir: str = 'data/conll-2003_preprocessed/'
-    model_dir: str = 'models/lstm_crf/'
+    model_dir: str = 'model_training/lstm_crf/'
     ner_lstm_crf = NerLstmCrf(
         data_dir=data_dir,
         model_dir=model_dir,
     )
-    ner_lstm_crf.keras_model.compile()
-    # test_data_path = os.path.join(data_dir, 'test.words.txt')
-    # test_self.vocab_tags_dir = os.path.join(data_dir, 'test.tags.txt')
-    #
-    # test_data = get_word_data_tensors(test_data_path, test_self.vocab_tags_dir)
-    # ner_lstm_crf.predict()
-    model_input = phrase_to_model_input('Tonight I will go shopping with Paris')
-    prediction = ner_lstm_crf.predict(model_input)
+    ner_lstm_crf.load_weights(model_dir)
+
+    model_input = 'Tonight I see Peter Jersey in New Jersey'
+    prediction = ner_lstm_crf.extract_entities(model_input)
     print(prediction)
 
-
-if __name__ == '__main__':
-    # from numpy.random import seed
-    # from tensorflow.random import set_seed
-    #
-    # run_model(1)
-    # run_model(1)
-    # run_model(1)
-    # run_model(3)
-    # run_model(3)
-
+def run_train():
+    """ Test training the model """
     data_dir: str = 'data/conll-2003_preprocessed/'
-    model_dir: str = 'models/lstm_crf/'
+    model_dir: str = 'model_training/lstm_crf/'
     ner_lstm_crf = NerLstmCrf(
         data_dir=data_dir,
         model_dir=model_dir,
     )
     ner_lstm_crf.model_summary()
-    ner_lstm_crf.keras_model.compile()
 
-    weights = copy(ner_lstm_crf.keras_model.trainable_weights)
-
-    test_example = phrase_to_model_input(' '.join(['John']*50))
-    ner_lstm_crf.keras_model.fit(x=test_example, y=test_example[2], batch_size=1, epochs=10)
-    weights2 = copy(ner_lstm_crf.keras_model.trainable_weights)
-
-    print('asdf')
-    # test_data_path = os.path.join(data_dir, 'test.words.txt')
-    # test_self.vocab_tags_dir = os.path.join(data_dir, 'test.tags.txt')
-    #
-    # test_data = get_word_data_tensors(test_data_path, test_self.vocab_tags_dir)
-    # ner_lstm_crf.predict()
-    # model_input = phrase_to_model_input('Tonight I will go shopping with Paris')
-    # prediction = ner_lstm_crf.predict(model_input)
-    # print(prediction)
     ner_lstm_crf.train()
+
+if __name__ == '__main__':
+    run_model()
+
